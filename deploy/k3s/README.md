@@ -18,7 +18,10 @@ kubectl -n smarthr360 create secret generic app-secrets \
   --from-literal=POSTGRES_PASSWORD='<strong-password>' \
   --from-literal=AUTH_SECRET_KEY='<random-50-chars>' \
   --from-literal=CORE_HR_SECRET_KEY='<random-50-chars>' \
-  --from-literal=CAREER_SIM_SECRET_KEY='<random-50-chars>'
+  --from-literal=CAREER_SIM_SECRET_KEY='<random-50-chars>' \
+  --from-literal=WORKLOAD_SECRET_KEY='<random-50-chars>' \
+  --from-literal=POLICY_GEN_SECRET_KEY='<random-50-chars>' \
+  --from-literal=RETENTION_SECRET_KEY='<random-50-chars>'
 kubectl apply -f cluster-issuer.yaml           # edit email first
 ```
 

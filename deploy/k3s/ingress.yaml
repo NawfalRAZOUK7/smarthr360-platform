@@ -41,3 +41,15 @@ spec:
             pathType: Prefix
             backend:
               service: { name: future-skills, port: { number: 8000 } }
+          - path: /api/workload
+            pathType: Prefix
+            backend:
+              service: { name: workload, port: { number: 8000 } }
+          - path: /api/policy
+            pathType: Prefix
+            backend:
+              service: { name: policy-gen, port: { number: 8000 } }
+          - path: /api/retention
+            pathType: Prefix
+            backend:
+              service: { name: retention, port: { number: 8000 } }

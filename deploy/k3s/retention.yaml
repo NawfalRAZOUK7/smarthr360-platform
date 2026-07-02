@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: retention
+  namespace: smarthr360
+  labels: { app: retention }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: retention }
+  template:
+    metadata:
+      labels: { app: retention }
+    spec:
+      containers:
+        - name: retention
+          image: ghcr.io/nawfalrazouk7/smarthr360-retention:main
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ALLOWED_HOSTS
+              value: "retention,api.smarthr360.example.com"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: RETENTION_SECRET_KEY }
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+            - name: DATABASE_URL
+              value: "postgres://smarthr:$(POSTGRES_PASSWORD)@postgres:5432/smarthr_retention"
+            - name: SMARTHR_JWT_PUBLIC_KEY_FILE
+              value: /keys/jwt_public.pem
+            - name: SMARTHR_JWT_ISSUER
+              value: smarthr360
+          volumeMounts:
+            - name: jwt-public
+              mountPath: /keys
+              readOnly: true
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: 500m, memory: 384Mi }
+          readinessProbe:
+            httpGet: { path: /healthz/, port: 8000 }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz/, port: 8000 }
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: jwt-public
+          secret:
+            secretName: jwt-keys
+            items:
+              - key: jwt_public.pem
+                path: jwt_public.pem
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: retention
+  namespace: smarthr360
+spec:
+  selector: { app: retention }
+  ports:
+    - port: 8000

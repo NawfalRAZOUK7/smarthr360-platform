@@ -83,6 +83,48 @@ services:
     ports:
       - "8004:8000"
 
+  workload:
+    build: ./services/smarthr360-workload
+    environment:
+      SECRET_KEY: ${WORKLOAD_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "workload,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_workload
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8005:8000"
+
+  policy-gen:
+    build: ./services/smarthr360-policy-gen
+    environment:
+      SECRET_KEY: ${POLICY_GEN_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "policy-gen,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_policy
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8006:8000"
+
+  retention:
+    build: ./services/smarthr360-retention
+    environment:
+      SECRET_KEY: ${RETENTION_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "retention,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_retention
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8007:8000"
+
 secrets:
   jwt_private.pem:
     file: ./keys/jwt_private.pem
