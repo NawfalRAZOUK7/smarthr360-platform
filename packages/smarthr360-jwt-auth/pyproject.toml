@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smarthr360-jwt-auth"
+version = "1.0.0"
+description = "Shared RS256 JWT verification client for SmartHR360 microservices (DRF authentication + claim-based role helpers)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Nawfal Razouk", email = "nawfalrazouk@icloud.com" }]
+dependencies = [
+    "PyJWT[crypto]>=2.8,<3.0",
+    "djangorestframework>=3.14,<4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "cryptography>=42.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
