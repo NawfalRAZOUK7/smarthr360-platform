@@ -71,8 +71,14 @@ services:
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_future_skills
-      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
-    secrets: [jwt_public.pem]
+      # Platform auth: trust RS256 tokens from the auth service via JWKS
+      AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
+      AUTH_ISSUER: smarthr360
+      AUTH_JWT_ALGORITHMS: RS256
+      AUTH_LOCAL_ENABLED: "False"
+      AUTH_USERINFO_URL: http://auth:8000/api/auth/me/
+    depends_on:
+      auth: { condition: service_started }
     depends_on:
       postgres: { condition: service_healthy }
     ports:
