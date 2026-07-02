@@ -1,0 +1,88 @@
+# SmartHR360 platform — local development composition.
+# Prerequisite: run ./scripts/generate_rsa_keys.sh once (creates ./keys).
+# Service repos are expected as git submodules (services/<name>) —
+# see README "Umbrella setup".
+
+name: smarthr360
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smarthr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: smarthr
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smarthr"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  auth:
+    build: ./services/smarthr360-auth
+    environment:
+      SECRET_KEY: ${AUTH_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "auth,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_auth
+      JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private.pem
+      JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_private.pem, jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8000:8000"
+
+  core-hr:
+    build: ./services/smarthr360-core-hr
+    environment:
+      SECRET_KEY: ${CORE_HR_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "core-hr,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_core_hr
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8001:8000"
+
+  career-sim:
+    build: ./services/smarthr360-career-sim
+    environment:
+      SECRET_KEY: ${CAREER_SIM_SECRET_KEY:?set in .env}
+      DEBUG: "False"
+      ALLOWED_HOSTS: "career-sim,localhost,127.0.0.1"
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_career
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8003:8000"
+
+  future-skills:
+    build: ./services/smarthr360_m3_future_skills
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_future_skills
+      SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+    secrets: [jwt_public.pem]
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "8004:8000"
+
+secrets:
+  jwt_private.pem:
+    file: ./keys/jwt_private.pem
+  jwt_public.pem:
+    file: ./keys/jwt_public.pem
+
+volumes:
+  pgdata:
