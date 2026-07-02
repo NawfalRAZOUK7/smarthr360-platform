@@ -78,9 +78,8 @@ services:
       AUTH_LOCAL_ENABLED: "False"
       AUTH_USERINFO_URL: http://auth:8000/api/auth/me/
     depends_on:
-      auth: { condition: service_started }
-    depends_on:
       postgres: { condition: service_healthy }
+      auth: { condition: service_started }
     ports:
       - "8004:8000"
 
