@@ -1,0 +1,43 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: smarthr360
+  namespace: smarthr360
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+spec:
+  tls:
+    - hosts: [api.smarthr360.example.com]   # EDIT: your domain
+      secretName: smarthr360-tls
+  rules:
+    - host: api.smarthr360.example.com       # EDIT: your domain
+      http:
+        paths:
+          - path: /api/auth
+            pathType: Prefix
+            backend:
+              service: { name: auth, port: { number: 8000 } }
+          - path: /.well-known
+            pathType: Prefix
+            backend:
+              service: { name: auth, port: { number: 8000 } }
+          - path: /api/hr
+            pathType: Prefix
+            backend:
+              service: { name: core-hr, port: { number: 8000 } }
+          - path: /api/reviews
+            pathType: Prefix
+            backend:
+              service: { name: core-hr, port: { number: 8000 } }
+          - path: /api/wellbeing
+            pathType: Prefix
+            backend:
+              service: { name: core-hr, port: { number: 8000 } }
+          - path: /api/career
+            pathType: Prefix
+            backend:
+              service: { name: career-sim, port: { number: 8000 } }
+          - path: /api/future-skills
+            pathType: Prefix
+            backend:
+              service: { name: future-skills, port: { number: 8000 } }

@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: smarthr360
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - auth.yaml
+  - core-hr.yaml
+  - career-sim.yaml
+  - future-skills.yaml
+  - ingress.yaml
+
+# Pin image tags per release here (platform version = this file's state)
+images:
+  - name: ghcr.io/nawfalrazouk7/smarthr360-auth
+    newTag: main
+  - name: ghcr.io/nawfalrazouk7/smarthr360-core-hr
+    newTag: main
+  - name: ghcr.io/nawfalrazouk7/smarthr360-career-sim
+    newTag: main
+  - name: ghcr.io/nawfalrazouk7/smarthr360_m3_future_skills
+    newTag: main

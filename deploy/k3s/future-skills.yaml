@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: future-skills
+  namespace: smarthr360
+  labels: { app: future-skills }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: future-skills }
+  template:
+    metadata:
+      labels: { app: future-skills }
+    spec:
+      containers:
+        - name: future-skills
+          image: ghcr.io/nawfalrazouk7/smarthr360_m3_future_skills:main
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DJANGO_SETTINGS_MODULE
+              value: config.settings.production
+            - name: ALLOWED_HOSTS
+              value: "future-skills,api.smarthr360.example.com"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+            - name: DATABASE_URL
+              value: "postgres://smarthr:$(POSTGRES_PASSWORD)@postgres:5432/smarthr_future_skills"
+            # Platform auth: trust RS256 tokens from auth via JWKS
+            - name: AUTH_JWKS_URL
+              value: http://auth:8000/.well-known/jwks.json
+            - name: AUTH_ISSUER
+              value: smarthr360
+            - name: AUTH_JWT_ALGORITHMS
+              value: RS256
+            - name: AUTH_LOCAL_ENABLED
+              value: "False"
+            - name: AUTH_USERINFO_URL
+              value: http://auth:8000/api/auth/me/
+          resources:
+            requests: { cpu: 150m, memory: 384Mi }
+            limits: { cpu: "1", memory: 1Gi }
+          readinessProbe:
+            httpGet: { path: /healthz/, port: 8000 }
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /healthz/, port: 8000 }
+            initialDelaySeconds: 60
+            periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: future-skills
+  namespace: smarthr360
+spec:
+  selector: { app: future-skills }
+  ports:
+    - port: 8000
