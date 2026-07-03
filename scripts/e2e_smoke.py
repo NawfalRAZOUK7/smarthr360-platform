@@ -123,6 +123,15 @@ def main() -> int:
     check("policy-gen: analytics", "turnover_rate" in analytics,
           f"turnover={analytics['turnover_rate']}%")
 
+    # 7b) cross-service wiring: policy-gen aggregates LIVE core-hr data
+    #     (the seeded profiles + reviews, fetched with token pass-through)
+    live = request("get", "policy_gen", "/api/policy/analytics/?source=live",
+                   hr_token, expect=[200]).json()
+    check("wiring: policy-gen live aggregates from core-hr",
+          live.get("headcount", 0) >= 4,
+          f"headcount={live.get('headcount')}, "
+          f"avg_perf={live.get('avg_performance')}")
+
     # 8) retention: HR can read actions and conversations after detection
     request("get", "retention", "/api/retention/actions/", hr_token,
             expect=[200])
