@@ -73,9 +73,6 @@ def seed_core_hr(acc) -> dict:
     ]
     for key, dept, title, manager_key in plan:
         a = acc[key]
-        if a["user_id"] in by_user:
-            profiles[key] = by_user[a["user_id"]]
-            continue
         payload = {
             "user_id": a["user_id"], "email": a["email"],
             "first_name": a["email"].split("@")[0].split("-")[-1].title(),
@@ -85,10 +82,22 @@ def seed_core_hr(acc) -> dict:
         }
         if manager_key and manager_key in profiles:
             payload["manager_id"] = profiles[manager_key]["id"]
-        profiles[key] = unwrap(request(
-            "post", "core_hr", "/api/hr/employees/", hr,
-            json=payload, expect=[201],
-        ).json())
+        if a["user_id"] in by_user:
+            # profile already exists (auth provisioning creates it at
+            # registration) — enrich it with org data instead
+            existing = by_user[a["user_id"]]
+            patch = {k: v for k, v in payload.items()
+                     if k in ("department_id", "manager_id", "job_title",
+                              "hire_date", "user_role")}
+            profiles[key] = unwrap(request(
+                "patch", "core_hr", f"/api/hr/employees/{existing['id']}/",
+                hr, json=patch, expect=[200],
+            ).json())
+        else:
+            profiles[key] = unwrap(request(
+                "post", "core_hr", "/api/hr/employees/", hr,
+                json=payload, expect=[201],
+            ).json())
     log(f"  profiles: { {k: p['id'] for k, p in profiles.items()} }")
 
     # skill catalog (idempotent by code)
