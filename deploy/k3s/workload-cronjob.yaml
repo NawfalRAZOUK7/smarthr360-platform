@@ -1,0 +1,48 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: workload-daily-scoring
+  namespace: smarthr360
+spec:
+  schedule: "0 6 * * 1-5"        # weekday mornings, 06:00
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: compute-all-scores
+              image: ghcr.io/nawfalrazouk7/smarthr360-workload:main
+              command: ["python", "manage.py", "compute_all_scores"]
+              env:
+                - name: SECRET_KEY
+                  valueFrom:
+                    secretKeyRef: { name: app-secrets, key: WORKLOAD_SECRET_KEY }
+                - name: POSTGRES_PASSWORD
+                  valueFrom:
+                    secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD }
+                - name: DATABASE_URL
+                  value: "postgres://smarthr:$(POSTGRES_PASSWORD)@postgres:5432/smarthr_workload"
+                - name: SMARTHR_JWT_PUBLIC_KEY_FILE
+                  value: /keys/jwt_public.pem
+                # Optional: HR digest inbox for CRITICAL alerts
+                # - name: WORKLOAD_HR_EMAIL
+                #   value: hr-alerts@your-org.com
+              volumeMounts:
+                - name: jwt-public
+                  mountPath: /keys
+                  readOnly: true
+              resources:
+                requests: { cpu: 100m, memory: 192Mi }
+                limits: { cpu: 500m, memory: 384Mi }
+          volumes:
+            - name: jwt-public
+              secret:
+                secretName: jwt-keys
+                items:
+                  - key: jwt_public.pem
+                    path: jwt_public.pem

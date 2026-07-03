@@ -12,6 +12,7 @@ resources:
 - workload.yaml
 - policy-gen.yaml
 - retention.yaml
+- workload-cronjob.yaml
 images:
 - name: ghcr.io/nawfalrazouk7/smarthr360-auth
   newTag: main
