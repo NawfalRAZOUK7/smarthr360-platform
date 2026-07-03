@@ -38,7 +38,7 @@ def check(name: str, condition: bool, detail: str = ""):
 
 def main() -> int:
     log("== SmartHR360 E2E smoke ==")
-    up = wait_for_services()
+    wait_for_services()
 
     # 0) seed (idempotent) — also validates every seeded endpoint
     seed_demo.main()
@@ -123,9 +123,9 @@ def main() -> int:
     check("policy-gen: analytics", "turnover_rate" in analytics,
           f"turnover={analytics['turnover_rate']}%")
 
-    # 8) retention: pending actions visible to HR after seed detection
-    actions = unwrap(request("get", "retention", "/api/retention/actions/",
-                             hr_token, expect=[200]).json())
+    # 8) retention: HR can read actions and conversations after detection
+    request("get", "retention", "/api/retention/actions/", hr_token,
+            expect=[200])
     conversations = unwrap(request(
         "get", "retention", "/api/retention/conversations/", hr_token,
         expect=[200]).json())
