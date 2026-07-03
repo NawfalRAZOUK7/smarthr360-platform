@@ -1,5 +1,5 @@
 # SmartHR360 platform — common commands
-.PHONY: keys up down logs migrate seed e2e test-all
+.PHONY: keys up down logs migrate seed e2e test-all lint-all observability
 
 keys:
 	./scripts/generate_rsa_keys.sh
@@ -28,3 +28,18 @@ test-all:
 	for s in services/*/; do \
 		echo "== $$s =="; \
 		(cd $$s && SECRET_KEY=ci python3 manage.py test -v 0) || exit 1; done
+
+lint-all:
+	for s in services/*/; do \
+		echo "== $$s =="; \
+		(cd $$s && python3 -m ruff check .) || exit 1; done
+
+# Local observability stack: Prometheus scraping all services + Grafana
+# (import deploy/observability/grafana-dashboard.json, datasource
+# http://localhost:9090)
+observability:
+	docker run -d --name smarthr-prometheus --network host \
+		-v $$PWD/deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml \
+		prom/prometheus
+	docker run -d --name smarthr-grafana --network host grafana/grafana
+	@echo "Prometheus: http://localhost:9090 | Grafana: http://localhost:3000"

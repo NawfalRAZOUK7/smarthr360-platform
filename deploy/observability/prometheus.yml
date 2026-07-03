@@ -1,0 +1,28 @@
+# Prometheus scrape configuration for SmartHR360.
+# Every service exposes /metrics via django-prometheus.
+# Local compose usage:
+#   docker run --net=host -v $PWD/deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml prom/prometheus
+# On k3s, use the same job list with kubernetes_sd_configs or adjust
+# targets to <service>.smarthr360.svc:8000.
+
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: smarthr360
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["localhost:8000"]
+        labels: { service: auth }
+      - targets: ["localhost:8001"]
+        labels: { service: core-hr }
+      - targets: ["localhost:8003"]
+        labels: { service: career-sim }
+      - targets: ["localhost:8004"]
+        labels: { service: future-skills }
+      - targets: ["localhost:8005"]
+        labels: { service: workload }
+      - targets: ["localhost:8006"]
+        labels: { service: policy-gen }
+      - targets: ["localhost:8007"]
+        labels: { service: retention }
