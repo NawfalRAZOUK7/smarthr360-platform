@@ -265,32 +265,45 @@ def seed_policy_gen(acc) -> None:
 def seed_retention(acc) -> None:
     log("[retention] engagement store + detection")
     hr = acc["hr"]["access"]
+    # NOTE: rows for some users may already exist, auto-created by the
+    # workload->retention burnout ingest — seed only the missing ones.
     existing = unwrap(request("get", "retention", "/api/retention/employees/", hr).json())
-    if not existing:
-        rows = [
-            (acc["employee"]["user_id"], "EMP-001", "Youssef Ziani",
-             acc["employee"]["email"], 45, 62, 3),   # at risk
-            (acc["manager"]["user_id"], "EMP-002", "Mounir Mansouri",
-             acc["manager"]["email"], 85, 80, 1),
-            (acc["hr"]["user_id"], "EMP-003", "Hind Haddad",
-             acc["hr"]["email"], 90, 85, 0),
-        ]
-        for user_id, eid, name, email, eng, perf, absence in rows:
-            request(
-                "post", "retention", "/api/retention/employees/", hr,
-                json={
-                    "user_id": user_id, "employee_id": eid, "name": name,
-                    "email": email, "engagement_score": eng,
-                    "performance_score": perf, "absence_days_90d": absence,
-                },
-                expect=[201],
-            )
+    known_user_ids = {e["user_id"] for e in existing}
+    rows = [
+        (acc["employee"]["user_id"], "EMP-001", "Youssef Ziani",
+         acc["employee"]["email"], 45, 62, 3),   # at risk
+        (acc["manager"]["user_id"], "EMP-002", "Mounir Mansouri",
+         acc["manager"]["email"], 85, 80, 1),
+        (acc["hr"]["user_id"], "EMP-003", "Hind Haddad",
+         acc["hr"]["email"], 90, 85, 0),
+    ]
+    created = 0
+    for user_id, eid, name, email, eng, perf, absence in rows:
+        if user_id in known_user_ids:
+            continue
+        request(
+            "post", "retention", "/api/retention/employees/", hr,
+            json={
+                "user_id": user_id, "employee_id": eid, "name": name,
+                "email": email, "engagement_score": eng,
+                "performance_score": perf, "absence_days_90d": absence,
+            },
+            expect=[201],
+        )
+        created += 1
+    if created:
         detect = request("post", "retention", "/api/retention/detect/", hr,
                          expect=[201]).json()
         log(f"  detection: {detect['at_risk_count']} at-risk, "
             f"conversation(s) opened")
     else:
         log("  engagement store already seeded")
+    signals = request("get", "retention", "/api/retention/signals/", hr,
+                      expect=[200]).json()
+    burnout = [s for s in signals if s["signal_type"] == "burnout_risk"]
+    if burnout:
+        log(f"  cross-service wiring: {len(burnout)} burnout signal(s) "
+            f"ingested from workload")
 
 
 def main() -> int:

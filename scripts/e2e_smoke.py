@@ -132,6 +132,15 @@ def main() -> int:
     check("retention: detection produced conversations",
           len(conversations) >= 1, f"{len(conversations)} conversation(s)")
 
+    # 8b) cross-service wiring: the seed's overloaded developer hit
+    #     BURNOUT_RISK in workload, which must have auto-ingested a
+    #     burnout signal into retention (no human in the loop).
+    signals = request("get", "retention", "/api/retention/signals/",
+                      hr_token, expect=[200]).json()
+    burnout = [s for s in signals if s["signal_type"] == "burnout_risk"]
+    check("wiring: workload burnout alert reached retention",
+          len(burnout) >= 1, f"{len(burnout)} burnout signal(s)")
+
     # 9) tampered token rejected everywhere
     bad = token[:-4] + "abcd"
     r = request("get", "core_hr", "/api/hr/employees/me/", bad)
