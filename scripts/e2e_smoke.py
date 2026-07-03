@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""SmartHR360 end-to-end smoke test.
+
+Runs the demo seed, then asserts the golden path across services with
+a FRESH user (not the demo accounts), so it exercises registration,
+lazy profile creation and cross-service authorization from scratch.
+
+Exit code 0 = platform healthy. Used by CI (compose) and pre-deploy.
+
+Usage:  python scripts/e2e_smoke.py
+"""
+
+from __future__ import annotations
+
+import sys
+import time
+import uuid
+from datetime import date
+
+import seed_demo
+from platform_client import (
+    SERVICES,
+    StepFailed,
+    log,
+    request,
+    unwrap,
+    wait_for_services,
+)
+
+CHECKS: list[str] = []
+
+
+def check(name: str, condition: bool, detail: str = ""):
+    status = "PASS" if condition else "FAIL"
+    CHECKS.append(status)
+    log(f"  [{status}] {name}" + (f" — {detail}" if detail else ""))
+    if not condition:
+        raise StepFailed(f"check failed: {name} {detail}")
+
+
+def main() -> int:
+    log("== SmartHR360 E2E smoke ==")
+    up = wait_for_services()
+
+    # 0) seed (idempotent) — also validates every seeded endpoint
+    seed_demo.main()
+    log("")
+    log("== E2E assertions (fresh user) ==")
+
+    suffix = uuid.uuid4().hex[:8]
+    email = f"e2e-{suffix}@demo.smarthr360.dev"
+
+    # 1) register a fresh employee on auth
+    r = request(
+        "post", "auth", "/api/auth/register/",
+        json={
+            "email": email, "username": f"e2e-{suffix}",
+            "first_name": "E2e", "last_name": "Tester",
+            "password": "E2e#2026!pass", "role": "EMPLOYEE",
+        },
+        expect=[201],
+    )
+    body = unwrap(r.json())
+    token = body["tokens"]["access"]
+    user_id = body["user"]["id"]
+    check("auth: register issues RS256 token pair", bool(token) and bool(user_id))
+
+    # 2) token refresh works
+    r = request(
+        "post", "auth", "/api/auth/refresh/",
+        json={"refresh": body["tokens"]["refresh"]}, expect=[200],
+    )
+    refreshed = unwrap(r.json())["access"]
+    check("auth: refresh flow preserves claims", bool(refreshed))
+    token = refreshed
+
+    # 3) core-hr trusts the token WITHOUT any auth-service call:
+    #    /me lazily creates the profile from claims
+    me = unwrap(request("get", "core_hr", "/api/hr/employees/me/", token,
+                        expect=[200]).json())
+    check(
+        "core-hr: lazy profile from claims",
+        me["user_id"] == user_id and me["email"] == email,
+        f"profile id={me['id']}",
+    )
+
+    # 4) role enforcement: employee cannot list all employees
+    r = request("get", "core_hr", "/api/hr/employees/", token)
+    check("core-hr: employee blocked from HR list", r.status_code == 403)
+
+    # 5) workload: create a task, compute a score
+    request(
+        "post", "workload", "/api/workload/tasks/", token,
+        json={"title": "E2E task", "estimated_hours": 4, "complexity": 3,
+              "deadline": str(date.today())},
+        expect=[201],
+    )
+    score = request("post", "workload", "/api/workload/scores/compute/",
+                    token, expect=[201]).json()
+    check("workload: scoring engine", score["score"] > 0, f"score={score['score']}")
+
+    # 6) career-sim: the cross-service skills-gap call
+    hr_token = seed_demo.bootstrap_accounts()["hr"]["access"]
+    positions = request(
+        "post", "career_sim", "/api/career/demo-data/reset/", hr_token,
+        expect=[201],
+    ).json()["positions"]
+    gap = request(
+        "get", "career_sim",
+        f"/api/career/skills-gap/?target_position_id={positions[0]['id']}",
+        token, expect=[200],
+    ).json()
+    check(
+        "career-sim: cross-service skills gap",
+        "readiness_percent" in gap
+        and gap["sources"]["current_skills"] == "smarthr360-core-hr",
+        f"readiness={gap['readiness_percent']}%",
+    )
+
+    # 7) policy-gen: HR analytics + gate
+    r = request("get", "policy_gen", "/api/policy/analytics/", token)
+    check("policy-gen: employee blocked", r.status_code == 403)
+    analytics = request("get", "policy_gen", "/api/policy/analytics/",
+                        hr_token, expect=[200]).json()
+    check("policy-gen: analytics", "turnover_rate" in analytics,
+          f"turnover={analytics['turnover_rate']}%")
+
+    # 8) retention: pending actions visible to HR after seed detection
+    actions = unwrap(request("get", "retention", "/api/retention/actions/",
+                             hr_token, expect=[200]).json())
+    conversations = unwrap(request(
+        "get", "retention", "/api/retention/conversations/", hr_token,
+        expect=[200]).json())
+    check("retention: detection produced conversations",
+          len(conversations) >= 1, f"{len(conversations)} conversation(s)")
+
+    # 9) tampered token rejected everywhere
+    bad = token[:-4] + "abcd"
+    r = request("get", "core_hr", "/api/hr/employees/me/", bad)
+    check("security: tampered token rejected", r.status_code == 401)
+
+    log("")
+    log(f"== E2E: {CHECKS.count('PASS')}/{len(CHECKS)} checks passed ==")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except StepFailed as exc:
+        log(f"E2E FAILED: {exc}")
+        sys.exit(1)

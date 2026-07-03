@@ -76,6 +76,22 @@ docker compose up --build
 | http://localhost:8006/docs/ | policy-gen |
 | http://localhost:8007/docs/ | retention |
 
+## Demo & E2E
+
+```bash
+make keys            # once: RS256 keypair
+make up migrate      # boot the platform
+make seed            # demo story across all services
+make e2e             # golden-path smoke test (also runs in CI)
+```
+
+`make seed` creates four one-click demo accounts (admin / hr / manager /
+employee, password printed at the end) and a coherent story: an
+overloaded developer (burnout alert in workload), his skills-gap to
+Lead Developer (career-sim x core-hr), a critical HR situation to fix
+in policy-gen, and an at-risk employee already in a retention
+conversation.
+
 ## Shared package
 
 `packages/smarthr360-jwt-auth` — RS256 verification client + claim-based

@@ -28,3 +28,35 @@ jobs:
           cp .env.example .env
           mkdir -p keys && touch keys/jwt_private.pem keys/jwt_public.pem
           docker compose config -q
+
+  e2e:
+    # Boots the whole platform from source (submodules) and runs the
+    # golden-path smoke test across all services.
+    runs-on: ubuntu-latest
+    needs: [jwt-auth-package, compose-validate]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Prepare env & RS256 keys
+        run: |
+          cp .env.example .env
+          ./scripts/generate_rsa_keys.sh
+      - name: Boot platform (compose)
+        run: |
+          docker compose up -d --build \
+            postgres auth core-hr career-sim workload policy-gen retention
+      - name: Run migrations in each service
+        run: |
+          for s in auth core-hr career-sim workload policy-gen retention; do
+            docker compose exec -T $s python manage.py migrate --noinput
+          done
+      - name: Seed + E2E smoke
+        env:
+          SMARTHR_WAIT_TRIES: "60"
+        run: |
+          pip install requests
+          python scripts/e2e_smoke.py
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail=120
