@@ -29,4 +29,4 @@ except Exception:  # ImportError / ImproperlyConfigured
     pass
 
 __all__ = ["JWTAuthentication", "TokenUser"]
-__version__ = "1.1.0"
+__version__ = "1.1.1"

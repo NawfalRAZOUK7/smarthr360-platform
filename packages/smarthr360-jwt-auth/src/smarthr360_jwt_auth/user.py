@@ -16,7 +16,15 @@ class TokenUser:
 
     def __init__(self, payload: dict):
         self.payload = payload
-        self.id = payload.get("user_id")
+        # SimpleJWT may serialize user_id as a string ("3"); normalize
+        # to int so Python-side comparisons against DB integer fields
+        # (`obj.user_id == request.user.id`) behave. Non-numeric ids
+        # (UUID issuers) pass through unchanged.
+        raw_id = payload.get("user_id")
+        try:
+            self.id = int(raw_id)
+        except (TypeError, ValueError):
+            self.id = raw_id
         self.pk = self.id
         self.email = payload.get("email", "")
         self.username = payload.get("username", "") or self.email

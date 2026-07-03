@@ -118,3 +118,16 @@ def test_role_helpers():
     assert has_manager_access(hr) and not has_manager_access(hr, include_hr=False)
     assert is_auditor(auditor) and not is_auditor(emp)
     assert not has_hr_access(None)
+
+
+def test_string_user_id_claim_normalized_to_int(keypair):
+    """SimpleJWT serializes user_id as a string; TokenUser must expose
+    an int so `obj.user_id == request.user.id` comparisons work."""
+    private_pem, _ = keypair
+    token = make_token(private_pem, user_id="42")
+    user, _ = JWTAuthentication().authenticate(FakeRequest(token))
+    assert user.id == 42 and isinstance(user.id, int)
+
+    uuid_token = make_token(private_pem, user_id="ab-12-cd")
+    user, _ = JWTAuthentication().authenticate(FakeRequest(uuid_token))
+    assert user.id == "ab-12-cd"  # non-numeric ids pass through
