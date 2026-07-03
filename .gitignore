@@ -43,4 +43,3 @@ htmlcov/
 dist/
 build/
 keys/jwt_private.pem
-/services/

@@ -1,0 +1,21 @@
+[submodule "services/smarthr360-auth"]
+	path = services/smarthr360-auth
+	url = git@github.com:NawfalRAZOUK7/smarthr360-auth.git
+[submodule "services/smarthr360-core-hr"]
+	path = services/smarthr360-core-hr
+	url = git@github.com:NawfalRAZOUK7/smarthr360-core-hr.git
+[submodule "services/smarthr360-career-sim"]
+	path = services/smarthr360-career-sim
+	url = git@github.com:NawfalRAZOUK7/smarthr360-career-sim.git
+[submodule "services/smarthr360_m3_future_skills"]
+	path = services/smarthr360_m3_future_skills
+	url = git@github.com:NawfalRAZOUK7/smarthr360_m3_future_skills.git
+[submodule "services/smarthr360-workload"]
+	path = services/smarthr360-workload
+	url = git@github.com:NawfalRAZOUK7/smarthr360-workload.git
+[submodule "services/smarthr360-policy-gen"]
+	path = services/smarthr360-policy-gen
+	url = git@github.com:NawfalRAZOUK7/smarthr360-policy-gen.git
+[submodule "services/smarthr360-retention"]
+	path = services/smarthr360-retention
+	url = git@github.com:NawfalRAZOUK7/smarthr360-retention.git
