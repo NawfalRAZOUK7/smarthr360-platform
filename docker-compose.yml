@@ -26,6 +26,8 @@ services:
   auth:
     build: ./services/smarthr360-auth
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${AUTH_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "auth,localhost,127.0.0.1"
@@ -43,6 +45,8 @@ services:
   core-hr:
     build: ./services/smarthr360-core-hr
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${CORE_HR_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "core-hr,localhost,127.0.0.1"
@@ -57,6 +61,8 @@ services:
   career-sim:
     build: ./services/smarthr360-career-sim
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${CAREER_SIM_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "career-sim,localhost,127.0.0.1"
@@ -72,7 +78,15 @@ services:
     build: ./services/smarthr360_m3_future_skills
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.production
-      DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_future_skills
+      SECRET_KEY: ${FUTURE_SKILLS_SECRET_KEY:?set in .env}
+      DATABASE_URL: postgresql://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_future_skills
+      ALLOWED_HOSTS: "future-skills,localhost,127.0.0.1,0.0.0.0"
+      # local compose serves plain HTTP — disable prod SSL/secure-cookie enforcement
+      SECURE_SSL_REDIRECT: "False"
+      SESSION_COOKIE_SECURE: "False"
+      CSRF_COOKIE_SECURE: "False"
+      # newer MLflow rejects the ./mlruns file store unless opted in
+      MLFLOW_ALLOW_FILE_STORE: "true"
       # Platform auth: trust RS256 tokens from the auth service via JWKS
       AUTH_JWKS_URL: http://auth:8000/.well-known/jwks.json
       AUTH_ISSUER: smarthr360
@@ -88,6 +102,8 @@ services:
   workload:
     build: ./services/smarthr360-workload
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${WORKLOAD_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "workload,localhost,127.0.0.1"
@@ -102,6 +118,8 @@ services:
   policy-gen:
     build: ./services/smarthr360-policy-gen
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${POLICY_GEN_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "policy-gen,localhost,127.0.0.1"
@@ -116,6 +134,8 @@ services:
   retention:
     build: ./services/smarthr360-retention
     environment:
+      # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
+      DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${RETENTION_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "retention,localhost,127.0.0.1"
