@@ -32,6 +32,8 @@ spec:
               value: /keys/jwt_private.pem
             - name: JWT_PUBLIC_KEY_FILE
               value: /keys/jwt_public.pem
+            - name: AUTH_PROVISIONING_URLS
+              value: http://core-hr:8000/api/hr/employees/me/
           volumeMounts:
             - name: jwt-keys
               mountPath: /keys

@@ -32,6 +32,8 @@ services:
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_auth
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
+      # user.registered provisioning: create the core-hr profile at signup
+      AUTH_PROVISIONING_URLS: http://core-hr:8000/api/hr/employees/me/
     secrets: [jwt_private.pem, jwt_public.pem]
     depends_on:
       postgres: { condition: service_healthy }
