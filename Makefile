@@ -14,11 +14,14 @@ logs:
 	docker compose logs -f --tail=100
 
 migrate:
-	for s in auth core-hr career-sim workload policy-gen retention; do \
+	for s in auth core-hr career-sim workload policy-gen retention future-skills; do \
 		docker compose exec -T $$s python manage.py migrate --noinput; done
 
 seed:
 	python3 scripts/seed_demo.py
+	@echo "== seeding future-skills demand (best-effort) =="
+	-docker compose exec -T future-skills python manage.py seed_future_skills
+	-docker compose exec -T future-skills python manage.py map_platform_codes --defaults
 
 e2e:
 	python3 scripts/e2e_smoke.py
