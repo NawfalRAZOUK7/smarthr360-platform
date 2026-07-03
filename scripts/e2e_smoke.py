@@ -13,13 +13,11 @@ Usage:  python scripts/e2e_smoke.py
 from __future__ import annotations
 
 import sys
-import time
 import uuid
 from datetime import date
 
 import seed_demo
 from platform_client import (
-    SERVICES,
     StepFailed,
     log,
     request,

@@ -7,7 +7,6 @@ docker-compose port mappings on localhost.
 from __future__ import annotations
 
 import os
-import sys
 import time
 
 import requests
