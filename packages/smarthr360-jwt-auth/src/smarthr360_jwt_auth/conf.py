@@ -31,8 +31,7 @@ def _get(name: str, env: str, default=None):
 
 
 @lru_cache(maxsize=1)
-def get_public_key() -> str:
-    """Return the PEM public key used to verify tokens."""
+def _resolve_public_key() -> str | None:
     key = _get("PUBLIC_KEY", "SMARTHR_JWT_PUBLIC_KEY")
     if key:
         # Allow escaped newlines in env vars ("-----BEGIN...\n...")
@@ -41,11 +40,33 @@ def get_public_key() -> str:
     if path and os.path.exists(path):
         with open(path, "r", encoding="utf-8") as fh:
             return fh.read()
-    raise RuntimeError(
-        "smarthr360-jwt-auth: no public key configured. Set SMARTHR_JWT_PUBLIC_KEY "
-        "or SMARTHR_JWT_PUBLIC_KEY_FILE (env), or SMARTHR_JWT_AUTH['PUBLIC_KEY'] "
-        "in Django settings."
-    )
+    return None
+
+
+def get_public_key(required: bool = True) -> str | None:
+    """Return the static PEM public key, if configured.
+
+    With a JWKS URL configured the static key is optional; `required`
+    preserves the historical hard-failure for PEM-only setups.
+    """
+    key = _resolve_public_key()
+    if key is None and required and not get_jwks_url():
+        raise RuntimeError(
+            "smarthr360-jwt-auth: no verification key configured. Set "
+            "SMARTHR_JWT_PUBLIC_KEY / SMARTHR_JWT_PUBLIC_KEY_FILE or "
+            "SMARTHR_JWT_JWKS_URL (env), or the SMARTHR_JWT_AUTH dict "
+            "in Django settings."
+        )
+    return key
+
+
+def get_jwks_url() -> str | None:
+    """JWKS document URL (e.g. auth's /.well-known/jwks.json)."""
+    return _get("JWKS_URL", "SMARTHR_JWT_JWKS_URL", None)
+
+
+def get_jwks_cache_seconds() -> int:
+    return int(_get("JWKS_CACHE_SECONDS", "SMARTHR_JWT_JWKS_CACHE_SECONDS", 3600))
 
 
 def get_issuer() -> str:
@@ -61,5 +82,8 @@ def get_leeway() -> int:
 
 
 def clear_cache() -> None:
-    """Testing helper: reset the cached public key."""
-    get_public_key.cache_clear()
+    """Testing helper: reset the cached public key (and JWKS cache)."""
+    _resolve_public_key.cache_clear()
+    from . import keys
+
+    keys.clear_cache()

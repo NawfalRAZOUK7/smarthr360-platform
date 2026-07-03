@@ -29,9 +29,32 @@ Environment:
 
 | Variable | Meaning |
 |---|---|
-| `SMARTHR_JWT_PUBLIC_KEY` | PEM content of the auth public key (escaped `\n` allowed) |
+| `SMARTHR_JWT_PUBLIC_KEY` | static PEM public key (escaped `\n` allowed) |
 | `SMARTHR_JWT_PUBLIC_KEY_FILE` | …or path to the PEM file |
+| `SMARTHR_JWT_JWKS_URL` | …or fetch keys from auth's `/.well-known/jwks.json` (cached) |
+| `SMARTHR_JWT_JWKS_CACHE_SECONDS` | JWKS cache TTL (default 3600) |
 | `SMARTHR_JWT_ISSUER` | expected `iss` claim (default `smarthr360`) |
+
+Static PEM and JWKS can be combined; at least one is required.
+
+### Key rotation
+
+Zero-downtime rotation is supported out of the box: keys are matched by
+`kid` when the token header carries one; tokens without a `kid`
+(SimpleJWT default) are verified against **every** key in the JWKS —
+cheap, since a rotating JWKS holds 2-3 keys at most. An unknown `kid`
+triggers one forced JWKS refresh (the "new key just published" case),
+and a stale cache keeps serving if auth is briefly unreachable.
+
+Rotation procedure: publish the new key in auth's JWKS *alongside* the
+old one → switch auth's signing key → retire the old key after the
+refresh-token lifetime.
+
+### Swagger "Authorize" button
+
+When drf-spectacular is installed, importing the package registers a
+bearer security scheme automatically — every service's `/docs/` gets a
+working **Authorize** button (paste an access token, try any endpoint).
 
 ## Use
 

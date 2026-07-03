@@ -19,5 +19,14 @@ Usage (Django settings)::
 from .authentication import JWTAuthentication
 from .user import TokenUser
 
+# Optional drf-spectacular integration: registers the bearer security
+# scheme so Swagger UIs get a working "Authorize" button. Skipped when
+# spectacular is absent OR Django settings aren't configured (e.g. the
+# package's own unit tests, plain scripts).
+try:  # pragma: no cover - trivially environment-dependent
+    from . import schema  # noqa: F401
+except Exception:  # ImportError / ImproperlyConfigured
+    pass
+
 __all__ = ["JWTAuthentication", "TokenUser"]
-__version__ = "1.0.0"
+__version__ = "1.1.0"
