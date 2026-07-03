@@ -115,6 +115,23 @@ def main() -> int:
         f"readiness={gap['readiness_percent']}%",
     )
 
+    # 6b) trajectory simulation: 1/3/5-year projections, persisted
+    sim = request(
+        "post", "career_sim", "/api/career/simulate/",
+        token,
+        json={"target_position_id": positions[0]["id"]},
+        expect=[201],
+    ).json()
+    traj = sim["trajectory"]
+    check(
+        "career-sim: trajectory simulation (1/3/5y)",
+        [p["horizon_years"] for p in traj["projections"]] == [1, 3, 5]
+        and 0.05 <= traj["success_probability"] <= 0.95
+        and "simulation_id" in sim,
+        f"p={traj['success_probability']}, "
+        f"ready_in={traj['estimated_years_to_ready']}y",
+    )
+
     # 7) policy-gen: HR analytics + gate
     r = request("get", "policy_gen", "/api/policy/analytics/", token)
     check("policy-gen: employee blocked", r.status_code == 403)
