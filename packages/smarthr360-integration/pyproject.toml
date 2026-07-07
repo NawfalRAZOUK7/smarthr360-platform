@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smarthr360-integration"
+version = "0.1.0"
+description = "Shared enterprise-integration toolkit for SmartHR360 microservices: idempotent Prometheus metrics, standardized API envelope/errors, reusable SCD2 history, and inter-service clients."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Nawfal Razouk", email = "nawfalrazouk@icloud.com" }]
+dependencies = [
+    "djangorestframework>=3.14,<4.0",
+    "prometheus_client>=0.19",
+    "requests>=2.31,<3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "Django>=5.0,<6.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
