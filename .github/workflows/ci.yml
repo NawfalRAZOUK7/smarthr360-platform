@@ -50,14 +50,30 @@ jobs:
           # generated fresh per run and never leaves the runner, so relaxing
           # it here is safe; the 0600 default stays for developers and prod.
           chmod 644 keys/jwt_private.pem
+      - name: Free disk space
+        # future-skills carries a heavy ML stack (llvmlite, numba, mlflow);
+        # building it alongside the other services overruns the runner's
+        # ~14 GB. Reclaiming the preinstalled toolchains buys ~20 GB.
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+                      /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
       - name: Boot platform (compose)
         run: |
           docker compose up -d --build \
-            postgres auth core-hr career-sim workload policy-gen retention
+            postgres auth core-hr career-sim workload policy-gen retention future-skills
       - name: Run migrations in each service
         run: |
-          for s in auth core-hr career-sim workload policy-gen retention; do
+          for s in auth core-hr career-sim workload policy-gen retention future-skills; do
             docker compose exec -T $s python manage.py migrate --noinput
+          done
+      - name: Run service test suites (unit + integration)
+        run: |
+          set -e
+          for s in auth core-hr career-sim workload policy-gen retention future-skills; do
+            echo "::group::$s tests"
+            docker compose exec -T $s python manage.py test --noinput --verbosity 1
+            echo "::endgroup::"
           done
       - name: Seed + E2E smoke
         env:
