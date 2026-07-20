@@ -20,8 +20,19 @@ git submodule update --init --recursive
 echo "==> Ensuring RS256 keys exist"
 [ -f keys/jwt_private.pem ] || ./scripts/generate_rsa_keys.sh
 
-echo "==> Building & starting the stack behind Caddy"
-$COMPOSE up -d --build
+echo "==> Pulling prebuilt service images from GHCR"
+# The seven Django services come from their own CI. Listed explicitly rather
+# than pulling everything: the base compose gives every service a build
+# section, so --ignore-buildable would skip all of them, and the frontend must
+# not be pulled at all -- its NEXT_PUBLIC_* URLs are baked in at build time and
+# have to point at this deployment's DEMO_DOMAIN.
+$COMPOSE pull postgres caddy auth core-hr workload retention career-sim future-skills policy-gen
+
+echo "==> Building the frontend for ${DEMO_DOMAIN:-this domain}"
+$COMPOSE build frontend
+
+echo "==> Starting the stack behind Caddy"
+$COMPOSE up -d
 
 echo "==> Waiting for Postgres"
 until $COMPOSE exec -T postgres pg_isready >/dev/null 2>&1; do sleep 2; done

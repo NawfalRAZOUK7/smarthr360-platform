@@ -35,13 +35,45 @@ services:
     ports: []          # no direct exposure; only via Caddy
 
   # Backend services: production settings, no host port publishing.
-  auth:          { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
-  core-hr:       { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
-  workload:      { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
-  retention:     { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
-  career-sim:    { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
-  future-skills: { environment: { DJANGO_SETTINGS_MODULE: config.settings.production, FUTURE_SKILLS_ASYNC_PREDICT: "1" }, ports: [] }
-  policy-gen:    { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  #
+  # Each pins the image its own CI publishes to GHCR, so the VM pulls prebuilt
+  # images instead of compiling seven Python services from source -- future-skills
+  # alone carries an ML stack heavy enough to exhaust a small box. Override the
+  # tag with IMAGE_TAG in .env.prod to deploy something other than main.
+  #
+  # The frontend deliberately still builds here: its NEXT_PUBLIC_* service URLs
+  # are baked in at build time, so a prebuilt image would ship whatever domain
+  # CI used rather than this deployment's DEMO_DOMAIN.
+  auth:
+    image: ghcr.io/nawfalrazouk7/smarthr360-auth:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
+  core-hr:
+    image: ghcr.io/nawfalrazouk7/smarthr360-core-hr:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
+  workload:
+    image: ghcr.io/nawfalrazouk7/smarthr360-workload:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
+  retention:
+    image: ghcr.io/nawfalrazouk7/smarthr360-retention:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
+  career-sim:
+    image: ghcr.io/nawfalrazouk7/smarthr360-career-sim:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
+  future-skills:
+    image: ghcr.io/nawfalrazouk7/smarthr360_m3_future_skills:${IMAGE_TAG:-main}
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.production
+      FUTURE_SKILLS_ASYNC_PREDICT: "1"
+    ports: []
+  policy-gen:
+    image: ghcr.io/nawfalrazouk7/smarthr360-policy-gen:${IMAGE_TAG:-main}
+    environment: { DJANGO_SETTINGS_MODULE: config.settings.production }
+    ports: []
 
 volumes:
   caddy_data:

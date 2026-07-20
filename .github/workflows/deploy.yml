@@ -1,0 +1,76 @@
+name: Deploy
+
+# Ships the public demo to its VM. Manual by default -- flip the `push` trigger
+# on once you trust a green main to go straight out.
+#
+# One-time setup on the VM:
+#   1. install Docker and the compose plugin
+#   2. git clone --recurse-submodules the platform repo
+#   3. cp deploy/prod/.env.prod.example deploy/prod/.env.prod  and fill it in
+#   4. docker login ghcr.io  (a read:packages PAT, or make the packages public)
+#
+# Repository secrets required here:
+#   DEPLOY_HOST  DEPLOY_USER  DEPLOY_SSH_KEY  DEPLOY_PATH
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to deploy (defaults to main)"
+        required: false
+        default: "main"
+        type: string
+  # push:
+  #   branches: [main]
+
+concurrency:
+  # Never let two deployments touch the VM at once.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          IMAGE_TAG: ${{ inputs.image_tag || 'main' }}
+        run: |
+          set -euo pipefail
+          for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do
+            if [ -z "${!v}" ]; then
+              echo "::error::$v is not set. Add it under Settings > Secrets and variables > Actions."
+              exit 1
+            fi
+          done
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pin the host key so this cannot be silently redirected to another box.
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          ssh -i ~/.ssh/deploy_key -o IdentitiesOnly=yes \
+              "$DEPLOY_USER@$DEPLOY_HOST" \
+              "cd '$DEPLOY_PATH' && IMAGE_TAG='$IMAGE_TAG' bash deploy/prod/deploy.sh"
+
+      - name: Smoke-check the public demo
+        if: success()
+        env:
+          DEMO_URL: ${{ vars.DEMO_URL }}
+        run: |
+          if [ -z "${DEMO_URL:-}" ]; then
+            echo "DEMO_URL variable not set; skipping the public check."
+            exit 0
+          fi
+          # Confirms the deployment is actually reachable over HTTPS, which is
+          # the part a successful SSH run does not prove.
+          code=$(curl -fsS -o /dev/null -w '%{http_code}' --retry 5 --retry-delay 10 \
+                 --retry-all-errors "$DEMO_URL" || echo "000")
+          echo "$DEMO_URL -> $code"
+          [ "$code" = "200" ]
