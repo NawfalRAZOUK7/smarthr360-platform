@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "smarthr360-jwt-auth"
-version = "1.1.1"
+version = "1.2.0"
 description = "Shared RS256 JWT verification client for SmartHR360 microservices (DRF authentication + claim-based role helpers)."
 readme = "README.md"
 requires-python = ">=3.10"
