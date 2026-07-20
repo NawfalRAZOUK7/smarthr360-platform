@@ -58,6 +58,15 @@ def is_employee(user) -> bool:
     return bool(getattr(user, "role", None) == "EMPLOYEE" or _in_groups(user, EMPLOYEE_GROUPS))
 
 
+def has_admin_access(user) -> bool:
+    """Identity/system administration — ADMIN only (separation of duties).
+
+    Gates user & role management, integrations, audit log and system
+    settings, which HR must not touch even though it owns people data.
+    """
+    return is_admin(user)
+
+
 def has_hr_access(user) -> bool:
     return bool(is_admin(user) or is_hr(user))
 
