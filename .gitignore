@@ -19,6 +19,10 @@ local_settings.py
 .env
 .env.*
 !.env.example
+# Templates carry only placeholders and must ship, or a fresh VM cannot run
+# `cp deploy/prod/.env.prod.example deploy/prod/.env.prod`. The real
+# .env.prod stays ignored by the .env.* rule above.
+!.env.*.example
 *.pem
 !keys/public*.pem
 production-secrets*.txt
