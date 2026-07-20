@@ -70,11 +70,21 @@ jobs:
       - name: Run service test suites (unit + integration)
         run: |
           set -e
-          for s in auth core-hr career-sim workload policy-gen retention future-skills; do
+          for s in auth core-hr career-sim workload policy-gen retention; do
             echo "::group::$s tests"
             docker compose exec -T $s python manage.py test --noinput --verbosity 1
             echo "::endgroup::"
           done
+          # future-skills runs against Postgres rather than its default
+          # in-memory SQLite: its async prediction path uses a real worker
+          # thread, and SQLite cannot serve two concurrent writers, so the
+          # suite flakes on "database table is locked" under the load of the
+          # full stack. Production is Postgres, so this matches it.
+          echo "::group::future-skills tests (postgres)"
+          docker compose exec -T future-skills \
+            python manage.py test --noinput --verbosity 1 \
+            --settings=config.settings.test_postgres
+          echo "::endgroup::"
       - name: Seed + E2E smoke
         env:
           SMARTHR_WAIT_TRIES: "60"
