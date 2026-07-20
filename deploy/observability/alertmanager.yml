@@ -1,0 +1,36 @@
+# Alertmanager routing for SmartHR360.
+#
+# Prometheus evaluates the rules in alerts.rules.yml and pushes firing alerts
+# here; Alertmanager groups/deduplicates them and routes to a receiver. The
+# local default receiver drops notifications (no external creds in dev) — fired
+# alerts are still visible in the Alertmanager UI at http://localhost:9093.
+#
+# For production, add a real receiver (Slack / email / PagerDuty) — a Slack
+# example is included, commented out.
+
+route:
+  receiver: default
+  group_by: ["alertname", "service"]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "critical"
+      receiver: default
+      repeat_interval: 1h
+
+receivers:
+  - name: default
+    # No external notifications in local dev — alerts are visible in the UI.
+    # Production example (fill in a real webhook and uncomment):
+    # slack_configs:
+    #   - api_url: "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+    #     channel: "#smarthr360-alerts"
+    #     send_resolved: true
+
+inhibit_rules:
+  # A firing ServiceDown suppresses the noisier per-service error/latency alerts.
+  - source_matchers: [alertname = "ServiceDown"]
+    target_matchers: [severity =~ "warning|critical"]
+    equal: ["service"]

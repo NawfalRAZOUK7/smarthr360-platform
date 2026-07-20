@@ -25,12 +25,23 @@ services:
 
   auth:
     build: ./services/smarthr360-auth
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      # Prometheus multiprocess aggregation across gunicorn workers
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${AUTH_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${AUTH_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "auth,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
+      # Local dev: relax auth throttles so seed scripts can create/login
+      # dozens of accounts quickly (production keeps the strict defaults).
+      THROTTLE_LOGIN: "1000/min"
+      THROTTLE_REGISTER: "1000/hour"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_auth
       JWT_PRIVATE_KEY_FILE: /run/secrets/jwt_private.pem
       JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
@@ -44,12 +55,18 @@ services:
 
   core-hr:
     build: ./services/smarthr360-core-hr
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${CORE_HR_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${CORE_HR_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "core-hr,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_core_hr
       SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
     secrets: [jwt_public.pem]
@@ -60,12 +77,18 @@ services:
 
   career-sim:
     build: ./services/smarthr360-career-sim
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${CAREER_SIM_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${CAREER_SIM_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "career-sim,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_career
       SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
     secrets: [jwt_public.pem]
@@ -76,15 +99,23 @@ services:
 
   future-skills:
     build: ./services/smarthr360_m3_future_skills
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${FUTURE_SKILLS_GUNICORN_WORKERS:-1}"
+      GUNICORN_THREADS: "2"
+      GUNICORN_WORKER_CLASS: gthread
+      GUNICORN_TIMEOUT: "120"
+      # Local Compose is production-like but terminates plain HTTP directly;
+      # strict production validation belongs to the deployment environment.
+      DJANGO_SETTINGS_MODULE: config.settings.compose
       SECRET_KEY: ${FUTURE_SKILLS_SECRET_KEY:?set in .env}
       DATABASE_URL: postgresql://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_future_skills
       ALLOWED_HOSTS: "future-skills,localhost,127.0.0.1,0.0.0.0"
-      # local compose serves plain HTTP — disable prod SSL/secure-cookie enforcement
-      SECURE_SSL_REDIRECT: "False"
-      SESSION_COOKIE_SECURE: "False"
-      CSRF_COOKIE_SECURE: "False"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
+      FUTURE_SKILLS_USE_ML: "False"
       # newer MLflow rejects the ./mlruns file store unless opted in
       MLFLOW_ALLOW_FILE_STORE: "true"
       # Platform auth: trust RS256 tokens from the auth service via JWKS
@@ -101,12 +132,18 @@ services:
 
   workload:
     build: ./services/smarthr360-workload
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${WORKLOAD_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${WORKLOAD_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "workload,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_workload
       SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
     secrets: [jwt_public.pem]
@@ -117,12 +154,18 @@ services:
 
   policy-gen:
     build: ./services/smarthr360-policy-gen
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${POLICY_GEN_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${POLICY_GEN_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "policy-gen,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_policy
       SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
     secrets: [jwt_public.pem]
@@ -133,12 +176,18 @@ services:
 
   retention:
     build: ./services/smarthr360-retention
+    command: ["gunicorn", "config.wsgi:application", "-c", "/etc/gunicorn/gunicorn.conf.py"]
+    volumes:
+      - ./deploy/gunicorn.conf.py:/etc/gunicorn/gunicorn.conf.py:ro
     environment:
+      PROMETHEUS_MULTIPROC_DIR: /tmp/prometheus_multiproc
+      GUNICORN_WORKERS: "${RETENTION_GUNICORN_WORKERS:-1}"
       # local compose serves plain HTTP: base settings keep SSL-redirect off (production.py forces it on)
       DJANGO_SETTINGS_MODULE: config.settings.base
       SECRET_KEY: ${RETENTION_SECRET_KEY:?set in .env}
       DEBUG: "False"
       ALLOWED_HOSTS: "retention,localhost,127.0.0.1"
+      CORS_ALLOWED_ORIGINS: "http://localhost:3100"
       DATABASE_URL: postgres://smarthr:${POSTGRES_PASSWORD}@postgres:5432/smarthr_retention
       SMARTHR_JWT_PUBLIC_KEY_FILE: /run/secrets/jwt_public.pem
     secrets: [jwt_public.pem]
@@ -146,6 +195,78 @@ services:
       postgres: { condition: service_healthy }
     ports:
       - "8007:8000"
+
+  # --- Frontend ------------------------------------------------------------
+  # Next.js SPA. Build context is the sibling repo; convert to a
+  # services/smarthr360-frontend submodule once it has its own GitHub repo.
+  # NEXT_PUBLIC_* URLs are baked into the JS bundle at build time and must be
+  # reachable from the user's BROWSER (hence localhost host-ports, not
+  # docker-network hostnames).
+  frontend:
+    build:
+      context: ../smarthr360-frontend
+      args:
+        NEXT_PUBLIC_AUTH_URL: http://localhost:8000
+        NEXT_PUBLIC_CORE_HR_URL: http://localhost:8001
+        NEXT_PUBLIC_CAREER_SIM_URL: http://localhost:8003
+        NEXT_PUBLIC_FUTURE_SKILLS_URL: http://localhost:8004
+        NEXT_PUBLIC_WORKLOAD_URL: http://localhost:8005
+        NEXT_PUBLIC_POLICY_GEN_URL: http://localhost:8006
+        NEXT_PUBLIC_RETENTION_URL: http://localhost:8007
+    depends_on:
+      auth: { condition: service_started }
+      core-hr: { condition: service_started }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3100/login || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+    ports:
+      - "3100:3100"
+
+  # --- Observability stack -------------------------------------------------
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./deploy/observability/prometheus-compose.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/observability/alerts.rules.yml:/etc/prometheus/alerts.rules.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9090:9090"
+    depends_on:
+      - alertmanager
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    volumes:
+      - ./deploy/observability/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+    ports:
+      - "9093:9093"
+
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      # Local images already bundle the supported plugins. Disable background
+      # mutation of the read-only image filesystem and external update checks.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+    volumes:
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana-smarthr360-business.json:/var/lib/grafana/dashboards/smarthr360-business.json:ro
+      - ./deploy/observability/grafana-smarthr360-technical.json:/var/lib/grafana/dashboards/smarthr360-technical.json:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    ports:
+      - "3000:3000"
 
 secrets:
   jwt_private.pem:
@@ -155,3 +276,4 @@ secrets:
 
 volumes:
   pgdata:
+  grafana-data:

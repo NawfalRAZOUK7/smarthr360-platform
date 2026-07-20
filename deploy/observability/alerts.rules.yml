@@ -1,0 +1,69 @@
+# Prometheus alerting rules for the SmartHR360 platform.
+#
+# Loaded by prometheus-compose.yml via `rule_files`. Metric names follow the
+# django-prometheus exporter that every service mounts at /metrics, plus the
+# built-in `up` series Prometheus records per scrape target.
+#
+# These are starting thresholds — tune the `for:` windows and comparison values
+# to your traffic profile. Wire an Alertmanager into prometheus to route them.
+
+groups:
+  - name: smarthr360-availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job="smarthr360"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.service }} is down"
+          description: "Prometheus has failed to scrape {{ $labels.service }} ({{ $labels.instance }}) for over 1 minute."
+
+      - alert: ServiceFlapping
+        expr: changes(up{job="smarthr360"}[10m]) > 4
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.service }} is flapping"
+          description: "{{ $labels.service }} scrape state changed more than 4 times in 10 minutes."
+
+  - name: smarthr360-errors
+    rules:
+      - alert: HighServerErrorRate
+        expr: |
+          sum by (service) (rate(django_http_responses_total_by_status_total{status=~"5.."}[5m]))
+            /
+          clamp_min(sum by (service) (rate(django_http_responses_total_by_status_total[5m])), 1e-9)
+            > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx rate on {{ $labels.service }}"
+          description: "{{ $labels.service }} is returning more than 5% 5xx responses over the last 5 minutes."
+
+      - alert: SustainedServerErrors
+        expr: |
+          sum by (service) (rate(django_http_responses_total_by_status_total{status=~"5.."}[5m])) > 1
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Sustained 5xx errors on {{ $labels.service }}"
+          description: "{{ $labels.service }} has served >1 5xx/sec for 10 minutes."
+
+  - name: smarthr360-latency
+    rules:
+      - alert: HighRequestLatencyP95
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (service, le) (rate(django_http_requests_latency_seconds_by_view_method_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 latency > 1s on {{ $labels.service }}"
+          description: "95th-percentile request latency on {{ $labels.service }} has exceeded 1s for 5 minutes."

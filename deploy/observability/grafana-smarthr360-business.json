@@ -1,0 +1,208 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "SmartHR360 Prometheus datasource",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "annotations": { "list": [] },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "tags": ["smarthr360", "business", "eai", "predictions"],
+  "title": "SmartHR360 — Business & Integration Metrics",
+  "uid": "smarthr360-business",
+  "time": { "from": "now-24h", "to": "now" },
+  "timezone": "browser",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "prometheus" },
+        "hide": 0
+      },
+      {
+        "name": "source_system",
+        "label": "ERP source",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(smarthr360_erp_sync_runs_total, source_system)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2
+      },
+      {
+        "name": "department",
+        "label": "Department",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "${datasource}" },
+        "query": "label_values(smarthr360_skill_gap_high_count, department)",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "refresh": 2
+      }
+    ]
+  },
+  "panels": [
+    { "type": "row", "title": "ERP Ingestion (core-hr)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }, "collapsed": false, "id": 1 },
+    {
+      "id": 2, "type": "stat", "title": "Successful syncs (1h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_erp_sync_runs_total{status=~\"SUCCESS|PARTIAL\", source_system=~\"$source_system\"}[1h]))" } ]
+    },
+    {
+      "id": 3, "type": "stat", "title": "Failed syncs (1h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 1 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_erp_sync_runs_total{status=\"FAILED\", source_system=~\"$source_system\"}[1h]))" } ]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Time since last successful sync",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 1 },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 3600 }, { "color": "red", "value": 86400 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "time() - max by(source_system)(smarthr360_erp_sync_last_success_timestamp_seconds{source_system=~\"$source_system\"})" } ]
+    },
+    {
+      "id": 5, "type": "piechart", "title": "Runs by status",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 1 },
+      "options": { "legend": { "displayMode": "list", "placement": "right" } },
+      "targets": [ { "refId": "A", "expr": "sum by(status)(increase(smarthr360_erp_sync_runs_total{source_system=~\"$source_system\"}[$__range]))", "legendFormat": "{{status}}" } ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Records processed by outcome (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 7 },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "stacking": { "mode": "normal" } } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum by(outcome)(rate(smarthr360_erp_sync_records_total{source_system=~\"$source_system\"}[5m]))", "legendFormat": "{{outcome}}" } ]
+    },
+
+    { "type": "row", "title": "Skill Gaps (core-hr, Étape 4)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 }, "collapsed": false, "id": 10 },
+    {
+      "id": 11, "type": "stat", "title": "Total HIGH-severity gaps",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 15 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(smarthr360_skill_gap_high_count{department=~\"$department\"})" } ]
+    },
+    {
+      "id": 12, "type": "bargauge", "title": "HIGH gaps by department",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 10, "x": 6, "y": 15 },
+      "options": { "orientation": "horizontal", "displayMode": "gradient" },
+      "targets": [ { "refId": "A", "expr": "smarthr360_skill_gap_high_count{department=~\"$department\"}", "legendFormat": "{{department}}" } ]
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Forecasts by severity",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 15 },
+      "targets": [ { "refId": "A", "expr": "sum by(severity)(smarthr360_skill_gap_forecasts{department=~\"$department\"})", "legendFormat": "{{severity}}" } ]
+    },
+
+    { "type": "row", "title": "Workload — Burnout (Module 1)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 }, "collapsed": false, "id": 20 },
+    {
+      "id": 21, "type": "stat", "title": "Employees at burnout risk",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 22 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(smarthr360_workload_burnout_risk_employees)" } ]
+    },
+    {
+      "id": 22, "type": "timeseries", "title": "Scores computed by level (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 9, "x": 6, "y": 22 },
+      "targets": [ { "refId": "A", "expr": "sum by(level)(rate(smarthr360_workload_scores_total[5m]))", "legendFormat": "{{level}}" } ]
+    },
+    {
+      "id": 23, "type": "timeseries", "title": "Burnout forecasts by projected level (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 9, "x": 15, "y": 22 },
+      "targets": [ { "refId": "A", "expr": "sum by(projected_level)(rate(smarthr360_workload_forecasts_total[5m]))", "legendFormat": "{{projected_level}}" } ]
+    },
+
+    { "type": "row", "title": "Retention — Attrition (Module 5)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "collapsed": false, "id": 30 },
+    {
+      "id": 31, "type": "stat", "title": "Employees at high attrition risk",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 29 },
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" }, "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 1 }, { "color": "red", "value": 5 } ] } }, "overrides": [] },
+      "targets": [ { "refId": "A", "expr": "sum(smarthr360_retention_attrition_high_risk_employees)" } ]
+    },
+    {
+      "id": 32, "type": "timeseries", "title": "Attrition predictions by level (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 18, "x": 6, "y": 29 },
+      "targets": [ { "refId": "A", "expr": "sum by(level)(rate(smarthr360_retention_attrition_predictions_total[5m]))", "legendFormat": "{{level}}" } ]
+    },
+
+    { "type": "row", "title": "Career-sim (Module 2) & Policy-gen (Module 4)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 }, "collapsed": false, "id": 40 },
+    {
+      "id": 41, "type": "timeseries", "title": "Career simulations by readiness band (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 36 },
+      "targets": [ { "refId": "A", "expr": "sum by(band)(rate(smarthr360_career_simulations_total[5m]))", "legendFormat": "{{band}}" } ]
+    },
+    {
+      "id": 42, "type": "stat", "title": "Career comparisons (24h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 36 },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_career_comparisons_total[24h]))" } ]
+    },
+    {
+      "id": 43, "type": "timeseries", "title": "Policy simulations by type (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 8, "x": 12, "y": 36 },
+      "targets": [ { "refId": "A", "expr": "sum by(policy_type)(rate(smarthr360_policy_simulations_total[5m]))", "legendFormat": "{{policy_type}}" } ]
+    },
+    {
+      "id": 44, "type": "stat", "title": "Policy A/B comparisons (24h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 36 },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_policy_comparisons_total[24h]))" } ]
+    },
+
+    { "type": "row", "title": "Security (auth)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 }, "collapsed": false, "id": 50 },
+    {
+      "id": 51, "type": "timeseries", "title": "Failed logins by reason (rate)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "custom": { "drawStyle": "line", "fillOpacity": 20 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 0.5 } ] } } },
+      "gridPos": { "h": 6, "w": 10, "x": 0, "y": 43 },
+      "targets": [ { "refId": "A", "expr": "sum by(reason)(rate(smarthr360_auth_failed_logins_total[5m]))", "legendFormat": "{{reason}}" } ]
+    },
+    {
+      "id": 52, "type": "stat", "title": "Failed logins (1h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 10 }, { "color": "red", "value": 50 } ] } } },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "gridPos": { "h": 6, "w": 4, "x": 10, "y": 43 },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_auth_failed_logins_total[1h]))" } ]
+    },
+    {
+      "id": 53, "type": "stat", "title": "Bad-credential attempts (1h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 6, "w": 4, "x": 14, "y": 43 },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_auth_failed_logins_total{reason=\"bad_credentials\"}[1h]))" } ]
+    },
+    {
+      "id": 54, "type": "stat", "title": "Login failure ratio (1h)",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "orange", "value": 0.3 }, { "color": "red", "value": 0.6 } ] } } },
+      "options": { "colorMode": "background", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 43 },
+      "targets": [ { "refId": "A", "expr": "sum(increase(smarthr360_auth_failed_logins_total[1h])) / clamp_min(sum(increase(smarthr360_auth_failed_logins_total[1h])) + sum(increase(smarthr360_auth_login_success_total[1h])), 1)" } ]
+    }
+  ]
+}

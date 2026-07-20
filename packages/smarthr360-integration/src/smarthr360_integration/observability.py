@@ -44,12 +44,25 @@ def get_counter(name: str, documentation: str, labelnames: Iterable[str] = ()) -
     return Counter(full, documentation, list(labelnames))
 
 
-def get_gauge(name: str, documentation: str, labelnames: Iterable[str] = ()) -> Gauge:
+def get_gauge(
+    name: str,
+    documentation: str,
+    labelnames: Iterable[str] = (),
+    multiprocess_mode: str = "livesum",
+) -> Gauge:
+    """Idempotent Gauge.
+
+    ``multiprocess_mode`` controls how a gauge is combined across gunicorn
+    workers when prometheus_client runs in multiprocess mode (it is ignored in
+    single-process mode). Defaults to ``"livesum"`` (sum across live workers),
+    which is right for "current count" gauges. Pass ``"max"`` for
+    monotonically-advancing values such as last-run timestamps.
+    """
     full = _full_name(name)
     existing = _existing(full)
     if isinstance(existing, Gauge):
         return existing
-    return Gauge(full, documentation, list(labelnames))
+    return Gauge(full, documentation, list(labelnames), multiprocess_mode=multiprocess_mode)
 
 
 def get_histogram(

@@ -41,8 +41,9 @@ lint-all:
 # (import deploy/observability/grafana-dashboard.json, datasource
 # http://localhost:9090)
 observability:
-	docker run -d --name smarthr-prometheus --network host \
-		-v $$PWD/deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml \
-		prom/prometheus
-	docker run -d --name smarthr-grafana --network host grafana/grafana
-	@echo "Prometheus: http://localhost:9090 | Grafana: http://localhost:3000"
+	# Prometheus + Grafana now run as part of the compose stack (`make up`),
+	# on the smarthr360 network, scraping services by name with the dashboard
+	# auto-provisioned. This target just brings them up and prints the URLs.
+	docker compose up -d prometheus grafana
+	@echo "Prometheus: http://localhost:9090 | Grafana: http://localhost:3000 (admin/admin)"
+	@echo "Dashboard: SmartHR360 — Business & Integration Metrics (auto-provisioned)"
