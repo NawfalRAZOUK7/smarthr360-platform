@@ -10,22 +10,24 @@ option large enough for this stack, and `sslip.io` supplies a hostname with no
 domain purchase. Total cost: nothing. Three things about that combination
 change how you deploy.
 
-### 1. Ampere A1 is arm64 — build on the host
+### 1. Ampere A1 is arm64
 
-CI publishes **amd64** images to GHCR. They will not run on Ampere. Deploy with:
+CI publishes **amd64 and arm64** images, so Ampere can pull rather than compile.
+The six lighter Django services emulate arm64 on an amd64 runner; future-skills
+builds each architecture on its own native runner, because emulating its ML
+stack turns a ~20 minute build into hours.
+
+To pull, the images must be reachable from the VM — see §4.
+
+Building on the VM instead stays available and needs no registry access at all:
 
 ```bash
 DEPLOY_BUILD=1 bash deploy/prod/deploy.sh
 ```
 
-That builds all eight images on the VM instead of pulling. The first run takes a
-while — future-skills carries an ML stack (numpy, scikit-learn, llvmlite,
-numba) — and later runs reuse the layer cache. `deploy.sh` refuses the pull path
-on a non-amd64 host rather than failing later with `exec format error`.
-
-Publishing multi-arch images from CI would remove this step, but arm64 builds
-there run under emulation and are slow and brittle for the ML image. Building
-natively on a 4-core/24 GB box is the better trade.
+That compiles all eight images locally. Expect 15–30 minutes on the first run;
+later runs reuse the layer cache. It is the fallback when a pull is not
+possible, and the images are verified to build natively on arm64.
 
 ### 2. Oracle blocks the ports twice
 
@@ -60,6 +62,28 @@ Caddy falls back to **ZeroSSL** automatically when Let's Encrypt refuses, which
 usually resolves it. If both fail, a cheap real domain removes the problem for
 good.
 
+### 4. GHCR images are private by default
+
+Packages published by Actions start **private even when the repository is
+public**, so a pull from the VM fails with `denied` or `403 Forbidden` until you
+choose one of:
+
+- **Make them public** — for each package under
+  <https://github.com/NawfalRAZOUK7?tab=packages>: Package settings → Change
+  visibility → Public. Nothing else to configure afterwards.
+- **Keep them private and authenticate** — create a PAT with `read:packages`,
+  then on the VM:
+
+  ```bash
+  echo "$GHCR_PAT" | docker login ghcr.io -u NawfalRAZOUK7 --password-stdin
+  ```
+
+- **Skip the registry** — `DEPLOY_BUILD=1` builds locally and needs no access.
+
+Seven packages are involved, one per backend service. The frontend is never
+published: its NEXT_PUBLIC_* URLs are baked in at build time, so it is always
+built on the VM against your DEMO_DOMAIN.
+
 ## First-time setup
 
 1. **Instance** — Ubuntu 22.04, Ampere A1, 4 OCPU / 24 GB, boot volume ~100 GB.
@@ -67,26 +91,37 @@ good.
    availability domain.
 2. **Ports** — both places, as above.
 3. **Docker**
+
    ```bash
    curl -fsSL https://get.docker.com | sudo sh
    sudo usermod -aG docker ubuntu && exec sudo su - ubuntu
    ```
+
 4. **Clone**
+
    ```bash
    git clone --recurse-submodules https://github.com/NawfalRAZOUK7/smarthr360-platform.git
    cd smarthr360-platform
    ```
+
 5. **Configure** — copy the template and fill it in. `DEMO_DOMAIN`,
    `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS` and `CORS_ALLOWED_ORIGINS` all take
    the sslip.io hostname (the last two with `https://`). Compose requires a
    separate signing key per service; the generator loop is in the file.
+
    ```bash
    cp deploy/prod/.env.prod.example deploy/prod/.env.prod
    ```
-6. **Deploy**
+
+6. **Deploy** — build on the VM, which needs no registry access:
+
    ```bash
    DEPLOY_BUILD=1 bash deploy/prod/deploy.sh
    ```
+
+   Once the images are reachable (§4), dropping `DEPLOY_BUILD=1` pulls them
+   instead and cuts the deploy to a couple of minutes.
+
 7. **Visit** `https://smarthr360.<ip>.sslip.io` — the read-only guest demo.
 
 ## Deploying afterwards from GitHub
