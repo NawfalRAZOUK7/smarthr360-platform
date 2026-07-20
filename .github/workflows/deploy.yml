@@ -36,9 +36,12 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # No `environment:` on purpose -- the secrets below are repository-level, so
-    # naming an environment would only add a gate to configure. Add one later if
-    # you want a manual approval before each deploy.
+    # Records each run in the repo's deployment history and gives somewhere to
+    # attach a required reviewer or environment-scoped secrets later. Created
+    # with no protection rules, so it does not gate the button today.
+    environment:
+      name: production
+      url: ${{ vars.DEMO_URL }}
     steps:
       - name: Deploy over SSH
         env:
