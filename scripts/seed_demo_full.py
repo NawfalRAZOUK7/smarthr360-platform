@@ -32,6 +32,7 @@ from platform_client import (
     DEMO_USERS,
     StepFailed,
     log,
+    paged_get,
     request,
     unwrap,
     wait_for_services,
@@ -85,32 +86,6 @@ def robust_bootstrap() -> dict:
 
 random.seed(42)  # deterministic volume data
 
-
-def paged_get(service: str, path: str, token: str) -> list:
-    """GET a DRF list endpoint, following pagination to the end.
-
-    Tolerates all shapes seen in the platform: plain list,
-    {results,next}, and the {data,meta} envelope around either.
-    """
-    items: list = []
-    page = 1
-    while True:
-        sep = "&" if "?" in path else "?"
-        r = request("get", service, f"{path}{sep}page={page}", token)
-        if r.status_code == 404:  # past the last page
-            break
-        body = r.json()
-        if isinstance(body, dict) and "data" in body:
-            body = body["data"]
-        if isinstance(body, list):
-            items.extend(body)
-            break  # not paginated
-        results = body.get("results", [])
-        items.extend(results)
-        if not body.get("next"):
-            break
-        page += 1
-    return items
 
 # --------------------------------------------------------------------------
 # The organisation

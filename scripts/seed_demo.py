@@ -29,6 +29,7 @@ from platform_client import (
     StepFailed,
     bootstrap_accounts,
     log,
+    paged_get,
     request,
     unwrap,
     wait_for_services,
@@ -63,7 +64,11 @@ def seed_core_hr(acc) -> dict:
 
     # profiles (idempotent: employees/me/ lazily creates; we upgrade via HR list)
     profiles = {}
-    existing = unwrap(request("get", "core_hr", "/api/hr/employees/", hr).json())
+    # Follow pagination: registration auto-creates bare profiles, so this list
+    # outgrows a single page. Reading only page 1 makes the seeder think a
+    # profile is missing and POST a duplicate, which core-hr rejects with
+    # "employee profile with this user id already exists".
+    existing = paged_get("core_hr", "/api/hr/employees/", hr)
     by_user = {p["user_id"]: p for p in existing}
     plan = [
         ("hr", "HR", "HR Business Partner", None),

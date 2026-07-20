@@ -67,6 +67,17 @@ jobs:
           for s in auth core-hr career-sim workload policy-gen retention future-skills; do
             docker compose exec -T $s python manage.py migrate --noinput
           done
+      - name: Seed + E2E smoke
+        # Runs before the test suites: several suites exercise real
+        # cross-service HTTP calls, which write into their siblings' runtime
+        # databases. Seeding after that leaves the seeder reconciling against
+        # data the tests invented, so the smoke test goes first, against a
+        # freshly migrated stack.
+        env:
+          SMARTHR_WAIT_TRIES: "60"
+        run: |
+          pip install requests
+          python scripts/e2e_smoke.py
       - name: Run service test suites (unit + integration)
         run: |
           set -e
@@ -85,12 +96,6 @@ jobs:
             python manage.py test --noinput --verbosity 1 \
             --settings=config.settings.test_postgres
           echo "::endgroup::"
-      - name: Seed + E2E smoke
-        env:
-          SMARTHR_WAIT_TRIES: "60"
-        run: |
-          pip install requests
-          python scripts/e2e_smoke.py
       - name: Logs on failure
         if: failure()
         run: docker compose logs --tail=120

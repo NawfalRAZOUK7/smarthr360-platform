@@ -75,6 +75,37 @@ def request(method, service, path, token=None, expect=None, **kwargs):
     return resp
 
 
+
+def paged_get(service: str, path: str, token: str) -> list:
+    """GET a DRF list endpoint, following pagination to the end.
+
+    Tolerates all shapes seen in the platform: plain list,
+    {results,next}, and the {data,meta} envelope around either.
+
+    Callers that only read the first page silently miss records once the
+    demo data outgrows one page, which shows up as a spurious "already
+    exists" conflict on the next write.
+    """
+    items: list = []
+    page = 1
+    while True:
+        sep = "&" if "?" in path else "?"
+        r = request("get", service, f"{path}{sep}page={page}", token)
+        if r.status_code == 404:  # past the last page
+            break
+        body = r.json()
+        if isinstance(body, dict) and "data" in body:
+            body = body["data"]
+        if isinstance(body, list):
+            items.extend(body)
+            break  # not paginated
+        results = body.get("results", [])
+        items.extend(results)
+        if not body.get("next"):
+            break
+        page += 1
+    return items
+
 def wait_for_services(names=None, tries=int(os.environ.get("SMARTHR_WAIT_TRIES", 60)), delay=int(os.environ.get("SMARTHR_WAIT_DELAY", 2))) -> list[str]:
     """Wait for /healthz/ on each service; return the ones that are up."""
     names = names or list(SERVICES)
