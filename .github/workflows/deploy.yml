@@ -16,10 +16,15 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image tag to deploy (defaults to main)"
+        description: "Image tag to deploy (ignored when building on the host)"
         required: false
         default: "main"
         type: string
+      build_on_host:
+        description: "Build images on the VM instead of pulling from GHCR (required on arm64, e.g. Oracle Ampere)"
+        required: false
+        default: true
+        type: boolean
   # push:
   #   branches: [main]
 
@@ -31,7 +36,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    # No `environment:` on purpose -- the secrets below are repository-level, so
+    # naming an environment would only add a gate to configure. Add one later if
+    # you want a manual approval before each deploy.
     steps:
       - name: Deploy over SSH
         env:
@@ -40,6 +47,10 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           IMAGE_TAG: ${{ inputs.image_tag || 'main' }}
+          # GHCR images are amd64. An arm64 host (Oracle Ampere) must build
+          # locally, so this defaults on; turn it off for an amd64 VM to get
+          # the much faster pull path.
+          DEPLOY_BUILD: ${{ inputs.build_on_host == false && '0' || '1' }}
         run: |
           set -euo pipefail
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do
