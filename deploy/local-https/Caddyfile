@@ -1,0 +1,57 @@
+# Local HTTPS reverse proxy for the SmartHR360 stack.
+#
+# Terminates TLS with mkcert-issued certs and proxies to each service on the
+# compose network by its service name. Gives local/prod parity: the browser
+# talks HTTPS, cookies are Secure, and mixed-content issues surface locally.
+#
+# Hostnames resolve via /etc/hosts (see README). One cert covers them all.
+
+{
+	# Certs are provided by mkcert and mounted at /certs (see compose overlay).
+	# Disable Caddy's own CA — we use mkcert's, which the OS already trusts.
+	auto_https disable_certs
+}
+
+(tls_local) {
+	tls /certs/smarthr360.pem /certs/smarthr360-key.pem
+}
+
+app.smarthr360.local {
+	import tls_local
+	reverse_proxy frontend:3100
+}
+
+auth.smarthr360.local {
+	import tls_local
+	reverse_proxy auth:8000
+}
+
+corehr.smarthr360.local {
+	import tls_local
+	reverse_proxy core-hr:8000
+}
+
+careersim.smarthr360.local {
+	import tls_local
+	reverse_proxy career-sim:8000
+}
+
+futureskills.smarthr360.local {
+	import tls_local
+	reverse_proxy future-skills:8000
+}
+
+workload.smarthr360.local {
+	import tls_local
+	reverse_proxy workload:8000
+}
+
+policygen.smarthr360.local {
+	import tls_local
+	reverse_proxy policy-gen:8000
+}
+
+retention.smarthr360.local {
+	import tls_local
+	reverse_proxy retention:8000
+}

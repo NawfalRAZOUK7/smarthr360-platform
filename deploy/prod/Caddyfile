@@ -1,0 +1,28 @@
+# SmartHR360 — single public origin, automatic HTTPS (Let's Encrypt).
+# All services share one domain and are routed by path prefix, so the browser
+# only ever talks to https://{$DEMO_DOMAIN}. Set DEMO_DOMAIN in .env.prod.
+
+{$DEMO_DOMAIN} {
+	encode gzip
+
+	# --- backend services (path-prefixed, matches the frontend api helpers) ---
+	handle /api/auth/*            { reverse_proxy auth:8000 }
+	handle /.well-known/jwks.json { reverse_proxy auth:8000 }
+	handle /api/hr/*              { reverse_proxy core-hr:8000 }
+	handle /api/workload/*        { reverse_proxy workload:8000 }
+	handle /api/retention/*       { reverse_proxy retention:8000 }
+	handle /api/career/*          { reverse_proxy career-sim:8000 }
+	handle /api/future-skills/*   { reverse_proxy future-skills:8000 }
+	handle /api/policy/*          { reverse_proxy policy-gen:8000 }
+
+	# --- frontend (everything else) ---
+	handle { reverse_proxy frontend:3100 }
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

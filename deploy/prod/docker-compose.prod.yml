@@ -1,0 +1,48 @@
+# Production overlay for a single cloud VM.
+#   docker compose -f docker-compose.yml -f deploy/prod/docker-compose.prod.yml up -d --build
+#
+# Adds a Caddy reverse proxy terminating TLS (one public origin), stops publishing
+# the individual service ports, and switches the frontend to the public domain.
+# Secrets/domain come from deploy/prod/.env.prod (never commit it).
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [frontend, auth, core-hr, workload, retention, career-sim, future-skills, policy-gen]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DEMO_DOMAIN: ${DEMO_DOMAIN}
+    volumes:
+      - ./deploy/prod/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  # The browser only sees the public origin; every NEXT_PUBLIC_*_URL points at it
+  # and Caddy path-routes to the right service.
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_AUTH_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_CORE_HR_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_WORKLOAD_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_RETENTION_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_CAREER_SIM_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_FUTURE_SKILLS_URL: https://${DEMO_DOMAIN}
+        NEXT_PUBLIC_POLICY_GEN_URL: https://${DEMO_DOMAIN}
+    ports: []          # no direct exposure; only via Caddy
+
+  # Backend services: production settings, no host port publishing.
+  auth:          { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  core-hr:       { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  workload:      { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  retention:     { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  career-sim:    { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+  future-skills: { environment: { DJANGO_SETTINGS_MODULE: config.settings.production, FUTURE_SKILLS_ASYNC_PREDICT: "1" }, ports: [] }
+  policy-gen:    { environment: { DJANGO_SETTINGS_MODULE: config.settings.production }, ports: [] }
+
+volumes:
+  caddy_data:
+  caddy_config:

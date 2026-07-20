@@ -1,0 +1,79 @@
+# Local HTTPS overlay — adds a Caddy TLS reverse proxy in front of the stack.
+#
+#   docker compose -f docker-compose.yml -f deploy/local-https/docker-compose.https.yml up -d
+#
+# Prereqs (one-time, see deploy/local-https/README.md):
+#   1. `mkcert -install` and generate ./deploy/local-https/certs/*.pem
+#   2. Add the *.smarthr360.local hostnames to /etc/hosts
+#   3. Rebuild the frontend with the https NEXT_PUBLIC_*_URL values below
+#
+# This overlay only ADDS the caddy service and points the frontend's public
+# service URLs at the HTTPS hostnames; the base compose is unchanged.
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      - frontend
+      - auth
+      - core-hr
+      - career-sim
+      - future-skills
+      - workload
+      - policy-gen
+      - retention
+    volumes:
+      - ./deploy/local-https/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/local-https/certs:/certs:ro
+      - caddy-data:/data
+    ports:
+      - "443:443"
+
+  # Point the browser-facing service URLs at the HTTPS proxy. These are build
+  # args (Next.js inlines NEXT_PUBLIC_* at build time), so the frontend image
+  # must be rebuilt when this overlay is used.
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_AUTH_URL: https://auth.smarthr360.local
+        NEXT_PUBLIC_CORE_HR_URL: https://corehr.smarthr360.local
+        NEXT_PUBLIC_CAREER_SIM_URL: https://careersim.smarthr360.local
+        NEXT_PUBLIC_FUTURE_SKILLS_URL: https://futureskills.smarthr360.local
+        NEXT_PUBLIC_WORKLOAD_URL: https://workload.smarthr360.local
+        NEXT_PUBLIC_POLICY_GEN_URL: https://policygen.smarthr360.local
+        NEXT_PUBLIC_RETENTION_URL: https://retention.smarthr360.local
+
+  # Each service must accept the new HTTPS origin (CORS) and the proxied Host
+  # header (ALLOWED_HOSTS). Caddy forwards the original Host, so Django needs
+  # its *.smarthr360.local hostname allow-listed.
+  auth:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "auth.smarthr360.local,auth,localhost,127.0.0.1"
+  core-hr:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "corehr.smarthr360.local,core-hr,localhost,127.0.0.1"
+  career-sim:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "careersim.smarthr360.local,career-sim,localhost,127.0.0.1"
+  future-skills:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "futureskills.smarthr360.local,future-skills,localhost,127.0.0.1,0.0.0.0"
+  workload:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "workload.smarthr360.local,workload,localhost,127.0.0.1"
+  policy-gen:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "policygen.smarthr360.local,policy-gen,localhost,127.0.0.1"
+  retention:
+    environment:
+      CORS_ALLOWED_ORIGINS: "https://app.smarthr360.local"
+      ALLOWED_HOSTS: "retention.smarthr360.local,retention,localhost,127.0.0.1"
+
+volumes:
+  caddy-data:
