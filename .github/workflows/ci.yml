@@ -42,6 +42,14 @@ jobs:
         run: |
           cp .env.example .env
           ./scripts/generate_rsa_keys.sh
+          # The services run as an unprivileged user (uid 10001). Compose
+          # secrets are bind mounts, so on Linux the container sees the host
+          # file's real mode -- and generate_rsa_keys.sh writes 0600 owned by
+          # the runner, which uid 10001 cannot read. Docker Desktop remaps
+          # ownership, which is why this only fails on CI. The key is
+          # generated fresh per run and never leaves the runner, so relaxing
+          # it here is safe; the 0600 default stays for developers and prod.
+          chmod 644 keys/jwt_private.pem
       - name: Boot platform (compose)
         run: |
           docker compose up -d --build \
