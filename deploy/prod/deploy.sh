@@ -39,12 +39,12 @@ if [ "${DEPLOY_BUILD:-0}" = "1" ]; then
   # locally built image is what `up` uses -- nothing is fetched from GHCR.
   $COMPOSE build $BACKENDS frontend
 else
-  if [ "$(uname -m)" != "x86_64" ]; then
-    echo "!! This host is $(uname -m) but the GHCR images are amd64."
-    echo "!! Re-run with DEPLOY_BUILD=1 to build them here instead."
-    exit 1
-  fi
-  echo "==> Pulling prebuilt service images from GHCR"
+  echo "==> Pulling prebuilt service images from GHCR ($(uname -m))"
+  # The images are published as multi-arch manifests (amd64 + arm64), so the
+  # registry serves whichever variant matches this host -- including arm64 for
+  # Oracle Cloud's Ampere shape. If a pull fails with "denied", the packages
+  # are still private: make them public or `docker login ghcr.io` first. See
+  # deploy/prod/README.md. DEPLOY_BUILD=1 skips the registry entirely.
   # Listed explicitly rather than pulling everything: the base compose gives
   # every service a build section, so --ignore-buildable would skip all of
   # them, and the frontend must not be pulled at all -- its NEXT_PUBLIC_* URLs

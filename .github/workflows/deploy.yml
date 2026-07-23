@@ -21,9 +21,9 @@ on:
         default: "main"
         type: string
       build_on_host:
-        description: "Build images on the VM instead of pulling from GHCR (required on arm64, e.g. Oracle Ampere)"
+        description: "Build images on the VM instead of pulling from GHCR (fallback when the packages are not reachable)"
         required: false
-        default: true
+        default: false
         type: boolean
   # push:
   #   branches: [main]
@@ -50,10 +50,10 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           IMAGE_TAG: ${{ inputs.image_tag || 'main' }}
-          # GHCR images are amd64. An arm64 host (Oracle Ampere) must build
-          # locally, so this defaults on; turn it off for an amd64 VM to get
-          # the much faster pull path.
-          DEPLOY_BUILD: ${{ inputs.build_on_host == false && '0' || '1' }}
+          # The images are multi-arch, so pulling works on both amd64 and
+          # arm64 hosts. Building on the VM stays available as a fallback for
+          # when the GHCR packages are unreachable.
+          DEPLOY_BUILD: ${{ inputs.build_on_host == true && '1' || '0' }}
         run: |
           set -euo pipefail
           for v in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY DEPLOY_PATH; do

@@ -12,12 +12,14 @@ change how you deploy.
 
 ### 1. Ampere A1 is arm64
 
-CI publishes **amd64 and arm64** images, so Ampere can pull rather than compile.
-The six lighter Django services emulate arm64 on an amd64 runner; future-skills
-builds each architecture on its own native runner, because emulating its ML
-stack turns a ~20 minute build into hours.
+CI publishes **amd64 and arm64** images, so Ampere pulls rather than compiles
+and a deploy takes a couple of minutes instead of half an hour. The six lighter
+Django services emulate arm64 on an amd64 runner; future-skills builds each
+architecture on its own native runner, because emulating its ML stack turns a
+~20 minute build into hours.
 
-To pull, the images must be reachable from the VM — see §4.
+Nothing needs to be set for this — the registry serves the variant matching the
+host. The images do have to be reachable from the VM, see §4.
 
 Building on the VM instead stays available and needs no registry access at all:
 
@@ -113,14 +115,19 @@ built on the VM against your DEMO_DOMAIN.
    cp deploy/prod/.env.prod.example deploy/prod/.env.prod
    ```
 
-6. **Deploy** — build on the VM, which needs no registry access:
+6. **Deploy**
+
+   ```bash
+   bash deploy/prod/deploy.sh
+   ```
+
+   This pulls the prebuilt images and builds only the frontend. If the pull
+   fails with `denied`, the packages are still private (§4) — either fix that
+   or fall back to building everything locally, which needs no registry access:
 
    ```bash
    DEPLOY_BUILD=1 bash deploy/prod/deploy.sh
    ```
-
-   Once the images are reachable (§4), dropping `DEPLOY_BUILD=1` pulls them
-   instead and cuts the deploy to a couple of minutes.
 
 7. **Visit** `https://smarthr360.<ip>.sslip.io` — the read-only guest demo.
 
