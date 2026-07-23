@@ -29,6 +29,19 @@ git submodule update --init --recursive
 echo "==> Ensuring RS256 keys exist"
 [ -f keys/jwt_private.pem ] || ./scripts/generate_rsa_keys.sh
 
+# Compose secrets are bind mounts, and on Linux the container sees the host
+# file's real owner. generate_rsa_keys.sh writes the key 0600 owned by whoever
+# ran it, while smarthr360-auth -- the only service given the private key --
+# runs as uid 10001, so it starts up with:
+#   PermissionError: [Errno 13] ... '/run/secrets/jwt_private.pem'
+# Handing the key to that uid keeps it 0600, which is stricter than widening
+# the mode. Docker Desktop on macOS remaps ownership, so this is a no-op there.
+if [ "$(uname -s)" = "Linux" ] && [ "$(stat -c '%u' keys/jwt_private.pem)" != "10001" ]; then
+  echo "==> Granting the private key to the auth service user (uid 10001)"
+  sudo chown 10001:10001 keys/jwt_private.pem \
+    || echo "!! could not chown keys/jwt_private.pem -- auth may fail to read it"
+fi
+
 BACKENDS="auth core-hr workload retention career-sim future-skills policy-gen"
 
 if [ "${DEPLOY_BUILD:-0}" = "1" ]; then

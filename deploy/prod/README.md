@@ -144,11 +144,12 @@ the environment on the VM side for an arm64 host.
 ## Troubleshooting
 
 **`auth` exits with `PermissionError: /run/secrets/jwt_private.pem`.**
-`generate_rsa_keys.sh` writes the key `0600` owned by the deploying user, while
-services run as uid 10001 and read it through a bind-mounted compose secret. On
-Linux the container sees the real owner and cannot read it. Docker Desktop on
-macOS remaps ownership, so this never reproduces locally. Make the key readable
-by the service user, or run the stack as the key's owner.
+`deploy.sh` handles this: compose secrets are bind mounts, so on Linux the
+container sees the host file's real owner, and it hands `keys/jwt_private.pem`
+to uid 10001 (the auth service user, the only consumer of the private key). If
+you see this anyway, the `chown` was refused — check that step's warning in the
+deploy output and re-run it with sudo. Docker Desktop on macOS remaps mount
+ownership, which is why this never reproduces locally.
 
 **Certificate never issues.** Check both firewalls first (§2), then the rate
 limit (§3). `docker compose logs caddy` states which.
